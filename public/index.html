@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yasmin´s Chat</title>
+  <style>
+    :root {
+      --primary: #5865F2;
+      --primary-dark: #4752C4;
+      --background: #36393F;
+      --message-sent: #40444B;
+      --message-received: #2F3136;
+      --text-light: #FFFFFF;
+      --text-gray: #B9BBBE;
+      --online: #3BA55C;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--background);
+      color: var(--text-light);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 500px;
+      height: 90vh;
+      background-color: var(--message-received);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .chat-header {
+      padding: 15px;
+      background-color: var(--message-received);
+      border-bottom: 1px solid #292B2F;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .users-online {
+      font-size: 12px;
+      color: var(--text-gray);
+      margin-top: 5px;
+    }
+
+    .online-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--online);
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .messages-container {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.sent {
+      background-color: var(--primary);
+      align-self: flex-end;
+    }
+
+    .message.received {
+      background-color: var(--message-sent);
+      align-self: flex-start;
+    }
+
+    .message-sender {
+      font-weight: bold;
+      margin-bottom: 3px;
+      color: var(--text-light);
+    }
+
+    .message-time {
+      font-size: 10px;
+      color: var(--text-gray);
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .input-container {
+      padding: 15px;
+      background-color: var(--message-received);
+      border-top: 1px solid #292B2F;
+      display: flex;
+      gap: 10px;
+    }
+
+    .message-input {
+      flex: 1;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: none;
+      background-color: #40444B;
+      color: var(--text-light);
+      outline: none;
+    }
+
+    .send-button {
+      padding: 0 20px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .send-button:hover {
+      background-color: var(--primary-dark);
+    }
+
+    /* Scrollbar */
+    .messages-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+      background-color: #202225;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      Yasmin´s Chat
+      <div class="users-online">
+        <span class="online-dot"></span>
+        <span id="onlineCount">0</span> usuários online
+      </div>
+    </div>
+
+    <div class="messages-container" id="messages"></div>
+
+    <div class="input-container">
+      <input type="text" class="message-input" id="messageInput" placeholder="Digite sua mensagem..." autocomplete="off">
+      <button class="send-button" id="sendButton">Enviar</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Configuração do Socket.IO
+    const socket = io();
+    const messagesContainer = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const onlineCount = document.getElementById('onlineCount');
+
+    // Solicita nome do usuário
+    let username = prompt("Digite seu nome para entrar no chat:") || "Anônimo";
+
+    // Envia mensagem
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      socket.emit('chat message', { username, text });
+      messageInput.value = '';
+    }
+
+    // Recebe mensagens
+    socket.on('chat message', (data) => {
+      addMessage(data.username, data.text, data.username === username ? 'sent' : 'received');
+    });
+
+    // Atualiza contagem de usuários online
+    socket.on('users online', (count) => {
+      onlineCount.textContent = count;
+    });
+
+    // Adiciona mensagem ao chat
+    function addMessage(sender, text, type) {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message', type);
+      messageElement.innerHTML = `
+        <div class="message-sender">${sender}</div>
+        ${text}
+        <div class="message-time">${timeString}</div>
+      `;
+
+      messagesContainer.appendChild(messageElement);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Event listeners
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Notifica entrada no chat
+    socket.emit('new user', username);
+  </script>
+</body>
+</html>
